@@ -10,6 +10,14 @@ export const UserCollection = {
     },
 
     /**
+     * @param {mongoose.FilterQuery} filter 
+     */
+     async existsAsync(filter) {
+        const found = await User.find(filter)
+        return found != undefined && found != null && found.length > 0
+    },
+
+    /**
      * @param {String} id
      */
     async getByIdAsync(id) {

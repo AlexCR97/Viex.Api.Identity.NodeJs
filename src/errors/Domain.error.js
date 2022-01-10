@@ -6,11 +6,18 @@ export class DomainError extends Error {
     statusCode
 
     /**
+     * @type {any}
+     */
+    details
+
+    /**
      * @param {Number} statusCode
      * @param {String} message
+     * @param {any} details
      */
-    constructor(statusCode, message) {
+    constructor(statusCode, message, details) {
         super(message)
         this.statusCode = statusCode
+        this.details = details
     }
 }

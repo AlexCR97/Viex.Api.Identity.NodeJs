@@ -10,18 +10,16 @@ import { StatusCode } from '../models/StatusCode.model.js'
  * @param {express.NextFunction} next
  */
 export const errorHandlerMiddleware = (err, req, res, next) => {
-    console.log('Error intercepted!')
-    console.log({ err })
-    
     if (err instanceof DomainError) {
         res.status(err.statusCode).json(new InfoResponse({
+            details: err.details,
             message: err.message,
             statusCode: err.statusCode,
             type: InfoResponseType.Error,
         }))
-    }
-    else {
+    } else {
         res.status(StatusCode.InternalServerError).json(new InfoResponse({
+            details: err,
             message: 'An unhandled error occured',
             statusCode: StatusCode.InternalServerError,
             type: InfoResponseType.Error,
