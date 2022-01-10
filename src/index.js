@@ -1,8 +1,9 @@
+import bcrypt from 'bcrypt'
 import bodyParser from 'body-parser'
 import express from 'express'
 import 'express-async-errors'
 import jsonwebtoken from 'jsonwebtoken'
-import { ACCESS_TOKEN_EXPIRATION, ACCESS_TOKEN_SECRET, PORT, REFRESH_TOKEN_SECRET } from './environment.js'
+import { ACCESS_TOKEN_EXPIRATION, ACCESS_TOKEN_SECRET, PORT, REFRESH_TOKEN_SECRET, SALT_GENERATION_ROUNDS } from './environment.js'
 import { EmailTakenError } from './errors/EmailTaken.error.js'
 import { InvalidPasswordError } from './errors/InvalidPassword.error.js'
 import { NullArgumentError } from './errors/NullArgument.error.js'
@@ -12,6 +13,7 @@ import { errorHandlerMiddleware } from './middleware/errorHandler.middleware.js'
 import { tokenMiddleware } from './middleware/token.middleware.js'
 import { InfoResponse, InfoResponseType } from './models/InfoResponse.model.js'
 import { StatusCode } from './models/StatusCode.model.js'
+import { RefreshTokenCollection } from './mongo/collections/RefreshToken.collection.js'
 import { UserCollection } from './mongo/collections/User.collection.js'
 import { initMongoAsync } from './mongo/index.js'
 import { checkPasswordStrength, Unreliable } from './utils/passwordChecker.js'
@@ -45,19 +47,30 @@ async function main() {
         if (!userExists)
             throw new UserNotFoundError({ email })
 
-        const foundUser = await UserCollection.getFirstAsync({ email, password }) // TODO Add password verification
+        const foundUser = await UserCollection.getFirstAsync({ email })
+        const isPasswordValid = await bcrypt.compare(password, foundUser.password)
 
-        if (!foundUser)
+        if (!isPasswordValid)
             throw new InvalidPasswordError()
         
         const token = { email }
         const accessToken = jsonwebtoken.sign(token, ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRATION })
         const refreshToken = jsonwebtoken.sign(token, REFRESH_TOKEN_SECRET)
 
+        await RefreshTokenCollection.createAsync({ token: refreshToken })
+
         return sendInfoResponse(res, new InfoResponse({
             content: { accessToken, refreshToken },
             statusCode: StatusCode.Ok,
         }))
+    })
+
+    app.post('/api/refreshToken', async (req, res) => {
+        const { refreshToken } = req.body.refreshToken
+
+        NullArgumentError.throw(refreshToken, 'refreshToken')
+
+
     })
 
     app.get('/api/myProfile', tokenMiddleware, (_, res) => {
@@ -93,7 +106,8 @@ async function main() {
         if (passwordReliability.strength == Unreliable)
             throw new PasswordUnreliableError(passwordReliability)
 
-        const user = await UserCollection.createAsync({ email, password })
+        const hashedPassword = await bcrypt.hash(password, SALT_GENERATION_ROUNDS)
+        const user = await UserCollection.createAsync({ email, password: hashedPassword })
 
         return sendStatusCodeJson(res, StatusCode.Created, new InfoResponse({
             content: user,

@@ -6,9 +6,6 @@ import express from 'express'
  * @param {express.NextFunction} next
  */
 export const tokenMiddleware = (req, res, next) => {
-    next()
-    return
-
     const authHeader = req.headers['authorization']
 
     if (!authHeader) {
