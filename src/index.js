@@ -1,86 +1,16 @@
 import bodyParser from 'body-parser'
 import express from 'express'
+import 'express-async-errors'
 import jsonwebtoken from 'jsonwebtoken'
-import mongoose from 'mongoose'
-import { User } from './entities/User.js'
-import { InfoResponse, InfoResponseType } from './models/HttpResponse.js'
+import { ACCESS_TOKEN_SECRET, PORT, REFRESH_TOKEN_SECRET } from './environment.js'
+import { NullArgumentError } from './errors/NullArgument.error.js'
+import { errorHandlerMiddleware } from './middleware/errorHandler.middleware.js'
+import { tokenMiddleware } from './middleware/token.middleware.js'
+import { InfoResponse, InfoResponseType } from './models/InfoResponse.model.js'
+import { StatusCode } from './models/StatusCode.model.js'
+import { UserCollection } from './mongo/collections/User.collection.js'
+import { initMongoAsync } from './mongo/index.js'
 import { checkPasswordStrength, Unreliable } from './utils/passwordChecker.js'
-
-/* #region Configuration */
-
-const PORT = 3030
-const ACCESS_TOKEN_EXPIRATION = '15sec'
-const ACCESS_TOKEN_SECRET = '7b45876373bb62d5d2563aaab829de00'
-const REFRESH_TOKEN_SECRET = 'd593ac80cbb1de1fed0c5c4b50e5790d'
-const MONGO_USER = 'sysadmin'
-const MONGO_PASSWORD = 'ErOTeggV9EZ84N6D'
-const MONGO_DATABASE = 'identity'
-
-/* #endregion */
-
-/* #region CONSTANTS */
-
-const StatusCodes = {
-    // Successful
-    Created: 201,
-
-    // Client side errors
-    BadRequest: 400,
-}
-
-/* #endregion */
-/**
- * @param {express.Request} req
- * @param {express.Response} res
- * @param {express.NextFunction} next
- */
-const tokenMiddleware = (req, res, next) => {
-    next()
-    return
-
-    const authHeader = req.headers['authorization']
-
-    if (!authHeader) {
-        res.status(401).json({ message: 'Authorization header was not found' })
-        return
-    }
-    
-    const accessToken = authHeader.split(' ')[1] // "Bearer <accessToken>"
-    
-    if (!accessToken) {
-        res.status(401).json({ message: 'Could not find access token in authorization header' })
-        return
-    }
-
-    jsonwebtoken.verify(accessToken, ACCESS_TOKEN_SECRET, (err, user) => {
-        if (err) {
-            res.status(403).json({ message: 'Your token is invalid' })
-            return
-        }
-
-        req.user = user
-        next()
-    })
-}
-
-/**
- * 
- * @param {express.Express} app
- */
-async function initMongoAsync() {
-    console.log('Connecting to mongo...')
-
-    const connectionStringTemplate = 'mongodb+srv://<user>:<password>@maincluster.gwcad.mongodb.net/<databaseName>?retryWrites=true&w=majority'
-
-    const connectionString = connectionStringTemplate
-        .replace('<user>', MONGO_USER)
-        .replace('<password>', MONGO_PASSWORD)
-        .replace('<databaseName>', MONGO_DATABASE)
-
-    await mongoose.connect(connectionString)
-
-    console.log('Connection to mongo established correctly.')
-}
 
 /**
  * @param {express.Response} res
@@ -123,46 +53,47 @@ async function main() {
     app.post('/api/signUp', async (req, res) => {
         const { email, password } = req.body
 
-        const userByEmail = await User.find({ email })
+        NullArgumentError.throw(email, 'email')
+        NullArgumentError.throw(password, 'password')
 
-        if (userByEmail.length > 0)
-            return sendStatusCodeMessage(res, StatusCodes.BadRequest, `The email ${email} is already taken`)
-        
+        const userByEmail = await UserCollection.getFirstAsync({ email })
+
+        if (!userByEmail)
+            return sendStatusCodeMessage(res, StatusCode.BadRequest, `The email ${email} is already taken`)
+
         const passwordReliability = checkPasswordStrength(password)
 
         if (passwordReliability.strength == Unreliable)
-            return sendStatusCodeJson(res, StatusCodes.BadRequest, passwordReliability)
+            return sendStatusCodeJson(res, StatusCode.BadRequest, passwordReliability)
 
-        const user = new User({ dateCreated: new Date(), email, password })
+        const user = await UserCollection.createAsync({ email, password })
 
-        console.log('user:', user)
-
-        await user.save()
-
-        console.log('User saved!', user)
-
-        return sendStatusCodeJson(res, StatusCodes.Created, new InfoResponse({
+        return sendStatusCodeJson(res, StatusCode.Created, new InfoResponse({
             content: user,
             details: passwordReliability,
             type: InfoResponseType.Warning,
         }))
     })
 
-    app.get('/api/users', async (req, res) => {
-        const users = await User.find()
+    app.get('/api/users', tokenMiddleware, async (req, res) => {
+        const users = await UserCollection.getWhereAsync({})
         res.json(users)
     })
 
-    app.get('/api/users/:id', async (req, res) => {
+    app.get('/api/users/:id', tokenMiddleware, async (req, res) => {
         const _id = req.params.id
 
         try {
-            const user = await User.find({ _id })
+            // const user = await User.find({ _id })
+            const user = await UserCollection.getByIdAsync(_id)
             res.json(user)
         } catch (err) {
             res.status(500).json(err)
         }
     })
+
+    // Error handler middleware must be right before the .listen method
+    app.use(errorHandlerMiddleware)
 
     app.listen(PORT, () => {
         console.log(`Server listening in port ${PORT}`);

@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import { BaseSchemaProperties } from "./Base.js"
+import { BaseSchemaProperties } from "./Base.entity.js"
 
 export const UserSchema = new mongoose.Schema({
     ...BaseSchemaProperties,

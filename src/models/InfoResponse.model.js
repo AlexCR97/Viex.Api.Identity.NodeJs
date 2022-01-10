@@ -1,4 +1,10 @@
 export class InfoResponseConstructor {
+
+    /**
+     * @type {Number}
+     */
+     statusCode
+    
     /**
      * @type {String}
      */
@@ -24,6 +30,11 @@ export class InfoResponseConstructor {
 }
 
 export class InfoResponse {
+
+    /**
+     * @type {Number}
+     */
+    statusCode
 
     /**
      * @type {String}
@@ -58,6 +69,7 @@ export class InfoResponse {
         this.content = options.content
         this.details = options.details
         this.message = options.message
+        this.statusCode = options.statusCode
         this.type = options.type
     }
 }
