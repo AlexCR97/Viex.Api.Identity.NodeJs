@@ -1,4 +1,6 @@
 import express from 'express'
+import jsonwebtoken from 'jsonwebtoken'
+import { ACCESS_TOKEN_SECRET } from '../environment.js'
 
 /**
  * @param {express.Request} req

@@ -14,6 +14,14 @@ export const BaseCollection = (model) => ({
     },
 
     /**
+     * 
+     * @param {mongoose.FilterQuery} filter 
+     */
+    async deleteWhereAsync(filter) {
+        await model.deleteMany(filter)
+    },
+
+    /**
      * @param {mongoose.FilterQuery} filter 
      */
     async existsAsync(filter) {

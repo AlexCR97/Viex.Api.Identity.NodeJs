@@ -6,6 +6,7 @@ import jsonwebtoken from 'jsonwebtoken'
 import { ACCESS_TOKEN_EXPIRATION, ACCESS_TOKEN_SECRET, PORT, REFRESH_TOKEN_SECRET, SALT_GENERATION_ROUNDS } from './environment.js'
 import { EmailTakenError } from './errors/EmailTaken.error.js'
 import { InvalidPasswordError } from './errors/InvalidPassword.error.js'
+import { InvalidRefreshTokenError } from './errors/InvalidRefreshToken.error.js'
 import { NullArgumentError } from './errors/NullArgument.error.js'
 import { PasswordUnreliableError } from './errors/PasswordUnreliable.error.js'
 import { UserNotFoundError } from './errors/UserNotFound.error.js'
@@ -16,25 +17,16 @@ import { StatusCode } from './models/StatusCode.model.js'
 import { RefreshTokenCollection } from './mongo/collections/RefreshToken.collection.js'
 import { UserCollection } from './mongo/collections/User.collection.js'
 import { initMongoAsync } from './mongo/index.js'
+import { getAccessToken, sendInfoResponse } from './utils/api.utils.js'
 import { checkPasswordStrength, Unreliable } from './utils/passwordChecker.js'
-
-function sendStatusCodeJson(res, statusCode, body) {
-    res.status(statusCode).json({ statusCode, ...body })
-}
-
-/**
- * @param {express.Response} res
- * @param {InfoResponse} infoResponse
- */
-function sendInfoResponse(res, infoResponse) {
-    res.status(infoResponse.statusCode).json(infoResponse)
-}
 
 async function main() {
     const app = express()
     app.use(bodyParser.json())
 
     await initMongoAsync()
+
+    /* #region Token */
 
     app.post('/api/token', async (req, res) => {
         const { email, password } = req.body
@@ -66,29 +58,44 @@ async function main() {
     })
 
     app.post('/api/refreshToken', async (req, res) => {
-        const { refreshToken } = req.body.refreshToken
+        const { refreshToken } = req.body
 
         NullArgumentError.throw(refreshToken, 'refreshToken')
 
+        const refreshTokenDocument = await RefreshTokenCollection.getFirstAsync({ token: refreshToken })
 
+        if (!refreshTokenDocument)
+            throw new InvalidRefreshTokenError()
+
+        jsonwebtoken.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, user) => {
+            if (err || !user)
+                throw new InvalidRefreshTokenError()
+
+            const token = { email: user.email }
+            const accessToken = jsonwebtoken.sign(token, ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRATION })
+
+            sendInfoResponse(res, new InfoResponse({
+                content: { accessToken },
+                statusCode: StatusCode.Ok,
+            }))
+        })
     })
 
-    app.get('/api/myProfile', tokenMiddleware, (_, res) => {
-        const id = 'SomeRandomId'
-        const username = 'random@address.com'
-        res.json({ id, username })
-    })
+    app.post('/api/logout', async (req, res) => {
+        const { refreshToken } = req.body
 
-    app.post('/api/passwordReliability', async (req, res) => {
-        const { password } = req.body
+        NullArgumentError.throw(refreshToken, 'refreshToken')
 
-        NullArgumentError.throw(password, 'password')
+        await RefreshTokenCollection.deleteWhereAsync({ token: refreshToken })
 
         return sendInfoResponse(res, new InfoResponse({
-            content: checkPasswordStrength(password),
             statusCode: StatusCode.Ok,
         }))
     })
+
+    /* #endregion */
+
+    /* #region User */
 
     app.post('/api/signUp', async (req, res) => {
         const { email, password } = req.body
@@ -109,10 +116,20 @@ async function main() {
         const hashedPassword = await bcrypt.hash(password, SALT_GENERATION_ROUNDS)
         const user = await UserCollection.createAsync({ email, password: hashedPassword })
 
-        return sendStatusCodeJson(res, StatusCode.Created, new InfoResponse({
+        return sendInfoResponse(res, new InfoResponse({
             content: user,
             details: passwordReliability,
+            statusCode: StatusCode.Created,
             type: InfoResponseType.Warning,
+        }))
+    })
+
+    app.get('/api/myProfile', tokenMiddleware, (req, res) => {
+        const accessToken = getAccessToken(req)
+        const token = jsonwebtoken.decode(accessToken)
+        return sendInfoResponse(res, new InfoResponse({
+            content: token,
+            statusCode: StatusCode.Ok,
         }))
     })
 
@@ -133,6 +150,23 @@ async function main() {
             statusCode: StatusCode.Ok,
         }))
     })
+
+    /* #endregion */
+
+    /* #region Others */
+
+    app.post('/api/passwordReliability', async (req, res) => {
+        const { password } = req.body
+
+        NullArgumentError.throw(password, 'password')
+
+        return sendInfoResponse(res, new InfoResponse({
+            content: checkPasswordStrength(password),
+            statusCode: StatusCode.Ok,
+        }))
+    })
+
+    /* #endregion */
 
     // Error handler middleware must be right before the .listen method
     app.use(errorHandlerMiddleware)

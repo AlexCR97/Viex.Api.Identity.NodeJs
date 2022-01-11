@@ -19,7 +19,7 @@ export const errorHandlerMiddleware = (err, req, res, next) => {
         }))
     } else {
         res.status(StatusCode.InternalServerError).json(new InfoResponse({
-            details: err,
+            details: { message: err.message },
             message: 'An unhandled error occured',
             statusCode: StatusCode.InternalServerError,
             type: InfoResponseType.Error,
