@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import bodyParser from 'body-parser'
+import cors from 'cors'
 import express from 'express'
 import 'express-async-errors'
 import jsonwebtoken from 'jsonwebtoken'
@@ -22,7 +23,24 @@ import { checkPasswordStrength, Unreliable } from './utils/passwordChecker.js'
 
 async function main() {
     const app = express()
+
     app.use(bodyParser.json())
+
+    /* #region CORS */
+
+    const whitelist = [ 'http://localhost:8080' ]
+
+    app.use(cors({
+        origin: function(origin, callback) {
+            if (whitelist.indexOf(origin) !== -1) {
+                callback(null, true)
+            } else {
+                callback(new Error('Not allowed by CORS'))
+            }
+        },
+    }))
+
+    /* #endregion */
 
     await initMongoAsync()
 
@@ -48,7 +66,7 @@ async function main() {
 
         if (!isPasswordValid)
             throw new InvalidPasswordError()
-        
+
         const token = { email }
         const accessToken = jsonwebtoken.sign(token, ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRATION })
         const refreshToken = jsonwebtoken.sign(token, REFRESH_TOKEN_SECRET)
