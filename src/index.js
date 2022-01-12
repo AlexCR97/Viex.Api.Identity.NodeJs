@@ -26,6 +26,10 @@ async function main() {
 
     await initMongoAsync()
 
+    app.get('/', (req, res) => {
+        res.send('<h1>Identity Server</h1>')
+    })
+
     /* #region Token */
 
     app.post('/api/token', async (req, res) => {
@@ -171,8 +175,10 @@ async function main() {
     // Error handler middleware must be right before the .listen method
     app.use(errorHandlerMiddleware)
 
-    app.listen(PORT, () => {
-        console.log(`Server listening in port ${PORT}`);
+    const port = process.env.PORT || PORT
+
+    app.listen(port, () => {
+        console.log(`Server listening in port ${port}`);
     })
 }
 
