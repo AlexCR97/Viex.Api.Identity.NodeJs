@@ -28,7 +28,11 @@ async function main() {
 
     /* #region CORS */
 
-    const whitelist = [ 'http://localhost:8080' ]
+    const whitelist = [
+        'http://localhost:8080',
+        'http://localhost:8180',
+        'https://vx-app-management.herokuapp.com',
+    ]
 
     app.use(cors({
         origin: function(origin, callback) {
