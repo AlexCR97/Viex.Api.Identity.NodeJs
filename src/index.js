@@ -31,25 +31,31 @@ async function main() {
     const whitelist = [
         'http://localhost:8080',
         'http://localhost:8180',
-        // 'https://vx-app-management.herokuapp.com',
+        'https://vx-app-management.herokuapp.com',
     ]
 
-    app.use(cors({
-        origin: function(origin, callback) {
-            if (whitelist.indexOf(origin) !== -1) {
-                callback(null, true)
-            } else {
-                callback(new Error('Not allowed by CORS'))
-            }
-        },
-    }))
+    app.use(cors())
+
+    // app.use(cors({
+    //     origin: function(origin, callback) {
+    //         if (whitelist.indexOf(origin) !== -1) {
+    //             callback(null, true)
+    //         } else {
+    //             callback(new Error('Not allowed by CORS'))
+    //         }
+    //     },
+    // }))
 
     /* #endregion */
 
     await initMongoAsync()
 
     app.get('/', (req, res) => {
-        res.send('<h1>Identity Server</h1>')
+        res.send('<h1>Identity Server Home Page</h1>')
+    })
+
+    app.get('/api', (req, res) => {
+        res.send('<h1>Identity Server API</h1>')
     })
 
     /* #region Token */
