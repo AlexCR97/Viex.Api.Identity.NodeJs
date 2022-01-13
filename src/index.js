@@ -31,7 +31,7 @@ async function main() {
     const whitelist = [
         'http://localhost:8080',
         'http://localhost:8180',
-        'https://vx-app-management.herokuapp.com',
+        // 'https://vx-app-management.herokuapp.com',
     ]
 
     app.use(cors({
