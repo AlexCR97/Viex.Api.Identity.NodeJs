@@ -50,4 +50,8 @@ export const BaseCollection = (model) => ({
     async getWhereAsync(filter) {
         return model.find(filter)
     },
+
+    async updateAsync(document) {
+        return await model.findByIdAndUpdate(document._id, document)
+    },
 })

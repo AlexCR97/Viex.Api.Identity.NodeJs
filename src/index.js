@@ -4,6 +4,8 @@ import cors from 'cors'
 import express from 'express'
 import 'express-async-errors'
 import jsonwebtoken from 'jsonwebtoken'
+import { RefreshToken } from './entities/RefreshToken.entity.js'
+import { User } from './entities/User.entity.js'
 import { ACCESS_TOKEN_EXPIRATION, ACCESS_TOKEN_SECRET, PORT, REFRESH_TOKEN_SECRET, SALT_GENERATION_ROUNDS } from './environment.js'
 import { EmailTakenError } from './errors/EmailTaken.error.js'
 import { InvalidPasswordError } from './errors/InvalidPassword.error.js'
@@ -81,7 +83,12 @@ async function main() {
         const accessToken = jsonwebtoken.sign(token, ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRATION })
         const refreshToken = jsonwebtoken.sign(token, REFRESH_TOKEN_SECRET)
 
-        await RefreshTokenCollection.createAsync({ token: refreshToken })
+        foundUser.refreshTokens.push(new RefreshToken({
+            token: refreshToken,
+            dateCreated: new Date(),
+        }))
+
+        await UserCollection.updateAsync(foundUser)
 
         return sendInfoResponse(res, new InfoResponse({
             content: { accessToken, refreshToken },
@@ -94,10 +101,19 @@ async function main() {
 
         NullArgumentError.throw(refreshToken, 'refreshToken')
 
-        const refreshTokenDocument = await RefreshTokenCollection.getFirstAsync({ token: refreshToken })
+        // Get user that has the refresh token
+        const userWithRefreshToken = await User.findOne(
+            { 'refreshTokens.token': { $gte: refreshToken } },
+            { 'refreshTokens': { $elemMatch: { token: { $gte: refreshToken } } } },
+        )
 
-        if (!refreshTokenDocument)
+        if (!userWithRefreshToken)
             throw new InvalidRefreshTokenError()
+
+        const refreshTokenDocument = userWithRefreshToken.refreshTokens.find(rt => rt.token == refreshToken)
+        refreshTokenDocument.lastUsed = new Date()
+
+        await userWithRefreshToken.save()
 
         jsonwebtoken.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, user) => {
             if (err || !user)
@@ -118,7 +134,24 @@ async function main() {
 
         NullArgumentError.throw(refreshToken, 'refreshToken')
 
-        await RefreshTokenCollection.deleteWhereAsync({ token: refreshToken })
+        // Get user that has the refresh token
+        const userWithRefreshToken = await User.findOne(
+            { 'refreshTokens.token': { $gte: refreshToken } },
+            { 'refreshTokens': { $elemMatch: { token: { $gte: refreshToken } } } },
+        )
+
+        if (!userWithRefreshToken) {
+            return sendInfoResponse(res, new InfoResponse({
+                message: 'This refresh token was invalid',
+                statusCode: StatusCode.Ok,
+                type: InfoResponseType.Warning,
+            }))
+        }
+
+        const refreshTokenDocument = userWithRefreshToken.refreshTokens.find(rt => rt.token == refreshToken)
+        refreshTokenDocument.remove()
+
+        await userWithRefreshToken.save()
 
         return sendInfoResponse(res, new InfoResponse({
             statusCode: StatusCode.Ok,
