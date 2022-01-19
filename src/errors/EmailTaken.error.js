@@ -1,5 +1,4 @@
-import { StatusCode } from "../models/StatusCode.model.js"
-import { DomainError } from "./Domain.error.js"
+import { DomainError, StatusCode } from "viex.node.core"
 
 export class EmailTakenError extends DomainError {
 

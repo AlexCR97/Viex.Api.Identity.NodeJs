@@ -2,7 +2,6 @@ import bcrypt from 'bcrypt'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import express from 'express'
-import 'express-async-errors'
 import jsonwebtoken from 'jsonwebtoken'
 import { RefreshToken } from './entities/RefreshToken.entity.js'
 import { User } from './entities/User.entity.js'
@@ -10,24 +9,22 @@ import { ACCESS_TOKEN_EXPIRATION, ACCESS_TOKEN_SECRET, PORT, REFRESH_TOKEN_SECRE
 import { EmailTakenError } from './errors/EmailTaken.error.js'
 import { InvalidPasswordError } from './errors/InvalidPassword.error.js'
 import { InvalidRefreshTokenError } from './errors/InvalidRefreshToken.error.js'
-import { NullArgumentError } from './errors/NullArgument.error.js'
 import { PasswordUnreliableError } from './errors/PasswordUnreliable.error.js'
 import { UserNotFoundError } from './errors/UserNotFound.error.js'
-import { errorHandlerMiddleware } from './middleware/errorHandler.middleware.js'
-// import { tokenMiddleware } from './middleware/token.middleware.js'
-import { InfoResponse, InfoResponseType } from './models/InfoResponse.model.js'
-import { StatusCode } from './models/StatusCode.model.js'
-import { RefreshTokenCollection } from './mongo/collections/RefreshToken.collection.js'
 import { UserCollection } from './mongo/collections/User.collection.js'
 import { initMongoAsync } from './mongo/index.js'
-import { getAccessToken, sendInfoResponse } from './utils/api.utils.js'
 import { checkPasswordStrength, Unreliable } from './utils/passwordChecker.js'
+import viexErrorsMiddleware from 'viex.node.middleware.errors'
 import viexTokenMiddleware from 'viex.node.middleware.token'
+import { NullArgumentError } from 'viex.node.core/errors/index.js'
+import { InfoResponse, InfoResponseType, StatusCode } from 'viex.node.core/models/index.js'
+import { getAccessToken, sendInfoResponse } from 'viex.node.core/utils/index.js'
 
 async function main() {
     const app = express()
+    const errorsMiddleware = viexErrorsMiddleware()
     const tokenMiddleware = viexTokenMiddleware({ accessTokenSecret: ACCESS_TOKEN_SECRET })
-    
+
     app.use(bodyParser.json())
 
     /* #region CORS */
@@ -236,7 +233,7 @@ async function main() {
     /* #endregion */
 
     // Error handler middleware must be right before the .listen method
-    app.use(errorHandlerMiddleware)
+    app.use(errorsMiddleware)
 
     const port = process.env.PORT || PORT
 

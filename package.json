@@ -18,6 +18,8 @@
     "express-async-errors": "^3.1.1",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.1.5",
+    "viex.node.core": "^1.0.1",
+    "viex.node.middleware.errors": "^1.0.1",
     "viex.node.middleware.token": "^1.0.5"
   },
   "engines": {
