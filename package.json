@@ -7,8 +7,8 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "serve": "node ./src/index.js",
-    "start": "node ./src/index.js"
+    "start": "node ./src/index.js",
+    "watch": "nodemon ./src/index.js"
   },
   "dependencies": {
     "bcrypt": "^5.0.1",
@@ -17,9 +17,13 @@
     "express": "^4.17.2",
     "express-async-errors": "^3.1.1",
     "jsonwebtoken": "^8.5.1",
-    "mongoose": "^6.1.5"
+    "mongoose": "^6.1.5",
+    "viex.node.middleware.token": "^1.0.5"
   },
   "engines": {
     "node": "14.15.5"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
   }
 }

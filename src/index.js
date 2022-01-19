@@ -14,7 +14,7 @@ import { NullArgumentError } from './errors/NullArgument.error.js'
 import { PasswordUnreliableError } from './errors/PasswordUnreliable.error.js'
 import { UserNotFoundError } from './errors/UserNotFound.error.js'
 import { errorHandlerMiddleware } from './middleware/errorHandler.middleware.js'
-import { tokenMiddleware } from './middleware/token.middleware.js'
+// import { tokenMiddleware } from './middleware/token.middleware.js'
 import { InfoResponse, InfoResponseType } from './models/InfoResponse.model.js'
 import { StatusCode } from './models/StatusCode.model.js'
 import { RefreshTokenCollection } from './mongo/collections/RefreshToken.collection.js'
@@ -22,10 +22,12 @@ import { UserCollection } from './mongo/collections/User.collection.js'
 import { initMongoAsync } from './mongo/index.js'
 import { getAccessToken, sendInfoResponse } from './utils/api.utils.js'
 import { checkPasswordStrength, Unreliable } from './utils/passwordChecker.js'
+import viexTokenMiddleware from 'viex.node.middleware.token'
 
 async function main() {
     const app = express()
-
+    const tokenMiddleware = viexTokenMiddleware({ accessTokenSecret: ACCESS_TOKEN_SECRET })
+    
     app.use(bodyParser.json())
 
     /* #region CORS */
