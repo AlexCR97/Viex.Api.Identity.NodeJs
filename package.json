@@ -16,6 +16,8 @@
     "cors": "^2.8.5",
     "express": "^4.17.2",
     "express-async-errors": "^3.1.1",
+    "google-auth-library": "^7.11.0",
+    "googleapis": "^92.0.0",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.1.5",
     "viex.node.core": "^1.0.1",
