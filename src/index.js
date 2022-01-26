@@ -20,6 +20,7 @@ import { NullArgumentError } from 'viex.node.core/errors/index.js'
 import { InfoResponse, InfoResponseType, StatusCode } from 'viex.node.core/models/index.js'
 import { getAccessToken, sendInfoResponse } from 'viex.node.core/utils/index.js'
 import { GoogleAuthService } from './services/index.js'
+import controllers from './controllers/index.js'
 
 async function main() {
     const app = express()
@@ -158,46 +159,6 @@ async function main() {
         }))
     })
 
-    app.get('/api/google/authUrl', async (req, res) => {
-        const creds = await GoogleAuthService.getGoogleWebCredentialsAsync()
-        const client = await GoogleAuthService.getGoogleClientAsync(creds)
-        const url = GoogleAuthService.getAccessTokenUrl(client)
-        return sendInfoResponse(res, new InfoResponse({
-            content: url,
-            statusCode: StatusCode.Ok,
-        }))
-    })
-
-    app.post('/api/google/token', async (req, res) => {
-        const { code } = req.body
-
-        NullArgumentError.throw(code, 'code')
-
-        const creds = await GoogleAuthService.getGoogleWebCredentialsAsync()
-        const client = await GoogleAuthService.getGoogleClientAsync(creds)
-
-        const decodedCode = decodeURIComponent(code)
-
-        client.getToken(decodedCode, (err, token) => {
-            if (err) {
-                const errorContent = err.response != undefined && err.response != null
-                    ? err.response.data
-                    : undefined
-
-                return sendInfoResponse(res, new InfoResponse({
-                    content: errorContent,
-                    message: err.message,
-                    statusCode: err.code || StatusCode.InternalServerError,
-                }))
-            }
-
-            return sendInfoResponse(res, new InfoResponse({
-                content: token,
-                statusCode: StatusCode.Ok,
-            }))
-        })
-    })
-
     /* #endregion */
 
     /* #region User */
@@ -272,6 +233,8 @@ async function main() {
     })
 
     /* #endregion */
+
+    controllers(app)
 
     // Error handler middleware must be right before the .listen method
     app.use(errorsMiddleware)
